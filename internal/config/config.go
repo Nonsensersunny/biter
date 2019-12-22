@@ -6,22 +6,27 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"gopkg.in/yaml.v2"
 )
 
 const (
+	// PersistentConfig default config name
 	PersistentConfig = "biter"
+	// DefaultGlobalConfig default global config name
 	DefaultGlobalConfig = "config.yaml"
 )
 
 var (
+	// RootPath root path
 	RootPath string
+	// DefaultHttpConfig default HTTP config
 	DefaultHttpConfig = HttpConfig{
 		Portal:           "10.0.0.55",
 		ChallengeUrl:     "cgi-bin/get_challenge",
@@ -32,16 +37,19 @@ var (
 	}
 )
 
+// GlobalConfig global config struct
 type GlobalConfig struct {
 	Basic *BasicConfig `yaml:"basic" json:"basic"`
 	Http  *HttpConfig  `yaml:"http" json:"http"`
 }
 
+// BasicConfig basic config struct
 type BasicConfig struct {
 	Username string `yaml:"username" json:"username"`
 	Password string `yaml:"password" json:"password"`
 }
 
+// HttpConfig HTTP config struct
 type HttpConfig struct {
 	Portal           string `yaml:"portal" json:"portal"`
 	ChallengeUrl     string `yaml:"challenge-url" json:"challenge_url"`
@@ -56,7 +64,7 @@ func (h *HttpConfig) GetPortal() string {
 	if !strings.Contains(h.Portal, "http://") {
 		h.Portal = fmt.Sprintf("http://%s", h.Portal)
 	}
-	if string(h.Portal[len(h.Portal) - 1]) != "/" {
+	if string(h.Portal[len(h.Portal)-1]) != "/" {
 		h.Portal = fmt.Sprintf("%s/", h.Portal)
 	}
 	return h.Portal
@@ -117,11 +125,11 @@ func GetConfig(path string) *GlobalConfig {
 	var config *GlobalConfig
 	ymlFile, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Errorf("Reading config found error:%v, using default config", err)
+		log.Warningf("读取配置失败:%v, 应用默认配置", err)
 		return GetDefaultConfig()
 	}
 	if err = yaml.Unmarshal(ymlFile, &config); err != nil {
-		log.Fatalf("Unmarshal config found error:%v", err)
+		log.Fatalf("配置解析失败:%v", err)
 		return GetDefaultConfig()
 	}
 	return config
@@ -129,10 +137,10 @@ func GetConfig(path string) *GlobalConfig {
 
 // GetDefaultConfig get default global config
 func GetDefaultConfig() *GlobalConfig {
-	log.Info("Loading default config...")
+	log.Info("加载默认配置...")
 	conf, err := ReadAccount()
 	if err != nil {
-		log.Errorf("Reading default config failed:%v", err)
+		log.Errorf("读取默认配置失败:%v", err)
 		os.Exit(1)
 	}
 	return &GlobalConfig{
@@ -140,7 +148,7 @@ func GetDefaultConfig() *GlobalConfig {
 			Username: conf.Username,
 			Password: conf.Password,
 		},
-		Http:  &DefaultHttpConfig,
+		Http: &DefaultHttpConfig,
 	}
 }
 
@@ -154,7 +162,7 @@ func getAccountFilePath() (src string, err error) {
 	path := filepath.Join(RootPath, ".biter")
 	if _, se := os.Stat(path); se != nil {
 		if me := os.MkdirAll(path, 0755); me != nil {
-			log.Errorf("mkdir:%s found error:%v", path, err)
+			log.Errorf("创建文件夹:%s 失败:%v", path, err)
 			return
 		}
 	}
@@ -165,24 +173,24 @@ func getAccountFilePath() (src string, err error) {
 func PersistAccount(account *model.AccountRequest) (err error) {
 	src, err := getAccountFilePath()
 	if err != nil {
-		log.Errorf("Get config file found error:%v", err)
+		log.Errorf("读取配置文件失败:%v", err)
 		return
 	}
 	file, err := os.OpenFile(src, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
 	if err != nil {
-		log.Errorf("Open config file found error:%v", err)
+		log.Errorf("无法打开配置文件:%v", err)
 		return
 	}
 	defer file.Close()
 
 	jsonBytes, err := account.JSONBytes()
 	if err != nil {
-		log.Errorf("Get account json bytes found error:%v", err)
+		log.Errorf("无法读取配置字节流:%v", err)
 		return
 	}
 	str := base64.StdEncoding.EncodeToString(jsonBytes)
 	if _, err := file.WriteString(str); err != nil {
-		log.Errorf("Writing config file found error:%v", err)
+		log.Errorf("配置写入失败:%v", err)
 		return err
 	}
 	return nil
@@ -191,30 +199,30 @@ func PersistAccount(account *model.AccountRequest) (err error) {
 func ReadAccount() (account model.AccountRequest, err error) {
 	src, err := getAccountFilePath()
 	if err != nil {
-		log.Errorf("Get config file found error:%v", err)
+		log.Errorf("配置文件获取失败:%v", err)
 		return
 	}
 	file, err := os.Open(src)
 	if err != nil {
-		log.Errorf("Open config file found error:%v", err)
+		log.Errorf("配置文件打开失败:%v", err)
 		return
 	}
 	defer file.Close()
 
 	readBytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Errorf("Read config file found error:%v", err)
+		log.Errorf("配置文件读取失败:%v", err)
 		return
 	}
 
 	decodedBytes, err := base64.StdEncoding.DecodeString(string(readBytes))
 	if err != nil {
-		log.Errorf("Decode config found error:%v", err)
+		log.Errorf("配置解码失败:%v", err)
 		return
 	}
 
 	if err = json.Unmarshal(decodedBytes, &account); err != nil {
-		log.Errorf("Unmarshal config found error:%v", err)
+		log.Errorf("配置解析失败:%v", err)
 		return
 	}
 	return account, nil
@@ -223,7 +231,7 @@ func ReadAccount() (account model.AccountRequest, err error) {
 func init() {
 	curUser, err := user.Current()
 	if err != nil {
-		log.Fatalf("Failed to read system user info:%v", err)
+		log.Fatalf("无法获取系统用户信息:%v", err)
 	} else {
 		RootPath = curUser.HomeDir
 	}

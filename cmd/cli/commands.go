@@ -5,14 +5,22 @@ import (
 	"biter/internal/config"
 	"biter/internal/log"
 	"biter/pkg/model"
+	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // VERSION specify the version
-const VERSION = "v0.0.1"
+const VERSION = "v0.0.2"
+
+// RELEASE release link
+const RELEASE = "https://github.com/Nonsensersunny/biter/releases/latest"
+const updateTimeout = 3 * time.Second
 
 // Func type of command function
 type Func func(cmd string, params map[string]string)
@@ -59,6 +67,20 @@ func getCustomizedBasicConfig() model.AccountRequest {
 	_, _ = fmt.Scanln(&account.Username)
 	fmt.Print("Password:")
 	_, _ = fmt.Scanln(&account.Password)
+SetServer:
+	fmt.Print("Server[Default campus](0 campus | 1 mobile | 2 unicom):")
+	server := 0
+	_, _ = fmt.Scanln(&server)
+	switch server {
+	case 0:
+		account.Server = model.ServerTypeOrigin
+	case 1:
+		account.Server = model.ServerTypeCMCC
+	case 2:
+		account.Server = model.ServerTypeWCDMA
+	default:
+		goto SetServer
+	}
 	return account
 }
 
@@ -67,7 +89,7 @@ func (c *Client) Login(cmd string, params map[string]string) {
 	var account model.AccountRequest
 	ok, err := strconv.ParseBool(params["create"])
 	if err != nil {
-		log.Errorf("Parse parameter found error:%v", err)
+		log.Errorf("解析参数失败:%v", err)
 		os.Exit(1)
 	}
 	if ok {
@@ -83,7 +105,7 @@ func (c *Client) Login(cmd string, params map[string]string) {
 	cli := &core.Core{Config: config.GetConfig(params["global"])}
 	info, err := cli.Login(&account)
 	if err != nil {
-		log.Errorf("Failed to login:%v", err)
+		log.Errorf("登录失败:%v", err)
 		os.Exit(1)
 	}
 	log.Info("登录成功!")
@@ -114,10 +136,10 @@ func (c *Client) Account(cmd string, params map[string]string) {
 func (c *Client) Config(cmd string, params map[string]string) {
 	account := getCustomizedBasicConfig()
 	if err := config.PersistAccount(&account); err != nil {
-		log.Errorf("Persist config found error:%v", err)
+		log.Errorf("配置保存失败:%v", err)
 		os.Exit(1)
 	}
-	log.Info("Persist config succeeded!")
+	log.Info("成功保存配置!")
 }
 
 // CmdHelp command help
@@ -144,5 +166,34 @@ func (Client) CmdList() string {
 
 // Update update
 func (c *Client) Update(cmd string, params map[string]string) {
+	client := http.Transport{
+		DialContext: func(ctx context.Context, network, addr string) (conn net.Conn, err error) {
+			conn, err = net.DialTimeout(network, addr, updateTimeout)
+			if err != nil {
+				return nil, err
+			}
+			_ = conn.SetDeadline(time.Now().Add(updateTimeout))
+			return conn, nil
+		},
+	}
 
+	req, err := http.NewRequest(http.MethodGet, RELEASE, nil)
+	if err != nil {
+		log.Errorf("获取更新失败:%v", err)
+		return
+	}
+
+	res, err := client.RoundTrip(req)
+	if err != nil {
+		log.Errorf("请求错误:%v", err)
+		return
+	}
+
+	newAddr := res.Header.Get("Location")
+	arr := strings.Split(newAddr, "/")
+	newVersion := arr[len(arr)-1]
+	log.Infof("最新版本:%s, 当前版本:%s", newVersion, VERSION)
+	if newVersion != VERSION {
+		log.Infof("新版本链接:%s", newAddr)
+	}
 }

@@ -8,24 +8,26 @@ import (
 	"biter/pkg/hash"
 	"biter/pkg/model"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
+// Core controller
 type Core struct {
 	Config *config.GlobalConfig
 }
 
 func (c *Core) getAcid() (acid int, err error) {
 	var (
-		client = http.DefaultClient
-		reg, _ = regexp.Compile(`index_[\d]\.html`)
-		demoUrl = "http://t.cn"
-		request *http.Request
+		client   = http.DefaultClient
+		reg, _   = regexp.Compile(`index_[\d]\.html`)
+		demoUrl  = "http://t.cn"
+		request  *http.Request
 		response *http.Response
 	)
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -35,7 +37,7 @@ func (c *Core) getAcid() (acid int, err error) {
 				acids := strings.TrimRight(strings.TrimLeft(res, "index_"), ".html")
 				acid, err = strconv.Atoi(acids)
 				if err != nil {
-					log.Errorf("Invalid URL:%s with error:%v", acids, err)
+					log.Errorf("打开链接 URL:%s 失败:%v", acids, err)
 				}
 				return nil
 			}
@@ -93,11 +95,12 @@ func (*Core) parseHtml(url string, val url.Values) (err error) {
 	return
 }
 
+// Login login
 func (c *Core) Login(account *model.AccountRequest) (res model.InfoRequest, err error) {
 	log.Infof("当前账号:%s", c.Config.Basic.Username)
 	acid, err := c.getAcid()
 	if err != nil {
-		log.Errorf("Get acid found error:%v", err)
+		log.Errorf("acid获取失败:%v", err)
 		err = errors.ErrConnected
 		return
 	}
@@ -111,7 +114,7 @@ func (c *Core) Login(account *model.AccountRequest) (res model.InfoRequest, err 
 
 	challenge, err := c.getChallenge()
 	if err != nil {
-		log.Errorf("Get challenge found error:%v", err)
+		log.Errorf("challenge获取失败:%v", err)
 		err = errors.ErrRequest
 		return
 	}
@@ -126,7 +129,7 @@ func (c *Core) Login(account *model.AccountRequest) (res model.InfoRequest, err 
 
 	actionResponse := model.ActionResponse{}
 	if err := utils.ParseRequest(c.Config.Http.GetSrunPortalUrl(), formLogin, &actionResponse); err != nil {
-		log.Errorf("Fetch request found error:%v", err)
+		log.Errorf("请求失败:%v", err)
 		err = errors.ErrRequest
 		return model.InfoRequest{}, nil
 	}
@@ -135,7 +138,7 @@ func (c *Core) Login(account *model.AccountRequest) (res model.InfoRequest, err 
 		if msg == "" {
 			msg = actionResponse.ErrorMsg
 		}
-		log.Errorf("Login failed:%v", msg)
+		log.Errorf("登录失败:%v", msg)
 		err = errors.ErrFailed
 		return
 	}
@@ -149,9 +152,10 @@ func (c *Core) Login(account *model.AccountRequest) (res model.InfoRequest, err 
 	return
 }
 
+// AccountInfo account info
 func (c *Core) AccountInfo(account model.AccountRequest) (err error) {
 	info := model.Info(1, account.Username, account.Ip, account.AccessToken)
-	log.Infof("Server:%v", account.Server)
+	log.Infof("网络类型:%v", account.Server)
 	if account.Server != model.ServerTypeOrigin {
 		return nil
 	}
@@ -159,16 +163,17 @@ func (c *Core) AccountInfo(account model.AccountRequest) (err error) {
 	return
 }
 
+// Logout logout
 func (c *Core) Logout() (err error) {
 	logout := model.Logout(c.Config.Basic.Username)
 	actionResponse := model.ActionResponse{}
 	if err = utils.ParseRequest(c.Config.Http.GetSrunPortalUrl(), logout, &actionResponse); err != nil {
-		log.Errorf("Do logout found error:%v", err)
+		log.Errorf("登出失败:%v", err)
 		err = errors.ErrRequest
 		return
 	}
 	if actionResponse.Error != "ok" {
-		log.Errorf("Logout error:%v", err)
+		log.Errorf("登出失败:%v", err)
 		err = errors.ErrRequest
 	}
 	return
