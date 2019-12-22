@@ -11,19 +11,24 @@ import (
 	"strings"
 )
 
-const VERSION = "V0.1.1"
+// VERSION specify the version
+const VERSION = "v0.0.1"
 
+// Func type of command function
 type Func func(cmd string, params map[string]string)
 
+// Client is an empty struct
 type Client struct{}
 
 var (
+	// DefaultClient default client
 	DefaultClient = &Client{}
 	serverTypes   = map[string]string{
 		"campus": model.ServerTypeOrigin,
 		"mobile": model.ServerTypeCMCC,
 		"unicom": model.ServerTypeWCDMA,
 	}
+	// CmdMap command map
 	CmdMap = map[string]Func{
 		"config":  DefaultClient.Config,
 		"login":   DefaultClient.Login,
@@ -38,6 +43,7 @@ var (
 		"-g": "customize full configuration file path",
 		"-h": "customize server configuration file path",
 	}
+	// CmdHelper command helper
 	CmdHelper = map[string][]string{
 		"config":  {"biter config", "Account settings"},
 		"login":   {"biter [login] [campus|mobile|unicom]", "Login to network"},
@@ -56,6 +62,7 @@ func getCustomizedBasicConfig() model.AccountRequest {
 	return account
 }
 
+// Login login
 func (c *Client) Login(cmd string, params map[string]string) {
 	var account model.AccountRequest
 	ok, err := strconv.ParseBool(params["create"])
@@ -83,6 +90,7 @@ func (c *Client) Login(cmd string, params map[string]string) {
 	log.Infof("当前IP:%v", info.ClientIp)
 }
 
+// Logout logout
 func (c *Client) Logout(cmd string, params map[string]string) {
 	cli := &core.Core{Config: config.GetConfig(params["global"])}
 	if err := cli.Logout(); err != nil {
@@ -92,15 +100,17 @@ func (c *Client) Logout(cmd string, params map[string]string) {
 	log.Info("登出成功!")
 }
 
+// Account account
 func (c *Client) Account(cmd string, params map[string]string) {
 	conf := config.GetConfig(params["global"])
-	cli := &core.Core{Config: conf,}
+	cli := &core.Core{Config: conf}
 	cli.AccountInfo(model.AccountRequest{
 		Username: conf.Basic.Username,
 		Password: conf.Basic.Password,
 	})
 }
 
+// Config config
 func (c *Client) Config(cmd string, params map[string]string) {
 	account := getCustomizedBasicConfig()
 	if err := config.PersistAccount(&account); err != nil {
@@ -110,10 +120,12 @@ func (c *Client) Config(cmd string, params map[string]string) {
 	log.Info("Persist config succeeded!")
 }
 
+// CmdHelp command help
 func (c *Client) CmdHelp(cmd string, params map[string]string) {
 	fmt.Println(c.CmdList())
 }
 
+// CmdList list of commands
 func (Client) CmdList() string {
 	sb := &strings.Builder{}
 	sb.WriteString(fmt.Sprintf("biter %s\r\n", VERSION))
@@ -130,6 +142,7 @@ func (Client) CmdList() string {
 	return sb.String()
 }
 
+// Update update
 func (c *Client) Update(cmd string, params map[string]string) {
 
 }
