@@ -1,0 +1,11 @@
+http:
+  portal: 10.0.0.55/
+  challenge-url: cgi-bin/get_challenge
+  srun-portal-url: cgi-bin/srun_portal
+  succeed-url-origin: srun_portal_pc_succeed.php
+  succeed-url-cmcc: srun_portal_pc_succeed_yys.php
+  succeed-url-wcdma: srun_portal_pc_succeed_yys_cucc.php
+
+basic:
+  username: 3220191000
+  password: 123456

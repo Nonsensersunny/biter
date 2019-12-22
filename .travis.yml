@@ -1,0 +1,21 @@
+language: go
+go:
+  - "1.13.4"
+env:
+  - GO111MODULE=on
+before_script:
+  - make prepare
+script:
+  - make publish
+deploy:
+  provider: releases
+  overwrite: true
+  api_key:
+    secure: $GITHUB_TOKEN
+  file:
+    - bin/biter-mac
+    - bin/biter-linux
+    - bin/biter.exe
+  skip_cleanup: true
+  on:
+    tags: true
