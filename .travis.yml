@@ -14,7 +14,7 @@ deploy:
     secure: $GITHUB_TOKEN
   file:
     - bin/biter-mac
-    - bin/biter-linux
+    - bin/biter
     - bin/biter.exe
   skip_cleanup: true
   on:
